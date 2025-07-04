@@ -1,4 +1,5 @@
-"""Helpers for working with a PS5 DualSense controller."""
+"""Utilities to connect to a PS5 DualSense controller via USB."""
+
 
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ except ImportError as e:  # pragma: no cover - optional dependency
 
 
 class DualSenseController:
+
     """Simple wrapper around :class:`pydualsense.pydualsense`.
 
     This class exposes basic methods for opening the connection and
@@ -18,6 +20,7 @@ class DualSenseController:
 
     def __init__(self) -> None:
         """Create a new :class:`DualSenseController` instance."""
+
         if pydualsense is None:
             raise ImportError(
                 "pydualsense is required. Install via 'pip install pydualsense'."
@@ -29,7 +32,9 @@ class DualSenseController:
         self.ds.init()
 
     def close(self) -> None:
+
         """Close the connection to the controller."""
+
         self.ds.close()
 
     def read_loop(self) -> None:
