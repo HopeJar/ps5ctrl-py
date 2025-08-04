@@ -9,16 +9,29 @@ This project provides simple utilities for interacting with a PS5 DualSense cont
 
 ## Getting Started
 
-1. Install the required dependency:
+1. Install the project requirements:
 
-```bash
-pip install pydualsense
 ```
+pip install -r requirements.txt
 
 2. Run the debug script to see controller input in the terminal:
 
-```bash
+```
 python scripts/debug_inputs.py
 ```
 
 Press `CTRL+C` to stop listening for input.
+
+
+## Documentation
+
+Documentation is generated using [pdoc](https://pdoc.dev). After installing the
+dependencies from `requirements.txt`, run:
+
+```
+tox
+```
+
+This will build HTML documentation under `reports/doc/`.
+=======
+
