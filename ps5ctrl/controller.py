@@ -47,6 +47,8 @@ class DualSenseController:
         self.ds.r1_changed += lambda val: print(f"R1: {val}")
         self.ds.l2_value_changed += lambda val: print(f"L2: {val}")
         self.ds.r2_value_changed += lambda val: print(f"R2: {val}")
+        self.ds.l3_changed += lambda val: print(f"L3: {val}")
+        self.ds.r3_changed += lambda val: print(f"R3: {val}")
         self.ds.dpad_up += lambda _: print("D-Pad: Up")
         self.ds.dpad_down += lambda _: print("D-Pad: Down")
         self.ds.dpad_left += lambda _: print("D-Pad: Left")
