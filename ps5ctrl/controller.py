@@ -32,9 +32,11 @@ class DualSenseController:
         self.ds.init()
 
     def close(self) -> None:
-
         """Close the connection to the controller."""
-
+        self.ds.setRightTriggerForce(0, 0)
+        self.ds.setLeftTriggerForce(0, 0)
+        self.ds.setRightMotor(0)
+        self.ds.setLeftMotor(0)
         self.ds.close()
 
     def read_loop(self) -> None:
@@ -45,8 +47,13 @@ class DualSenseController:
         # Register event callbacks
         self.ds.l1_changed += lambda val: print(f"L1: {val}")
         self.ds.r1_changed += lambda val: print(f"R1: {val}")
-        self.ds.l2_value_changed += lambda val: print(f"L2: {val}")
-        self.ds.r2_value_changed += lambda val: print(f"R2: {val}")
+        # self.ds.l2_value_changed += lambda val: print(f"L2: {val}")
+        # self.ds.r2_value_changed += lambda val: print(f"R2: {val}")
+        # self.ds.r2_value_changed += lambda val: self.ds.setRightMotor(255 - val)
+        # self.ds.l2_value_changed += lambda val: self.ds.setLeftMotor(255 - val)
+        self.ds.l2_value_changed += lambda val: print(f"L2 value: {val}")
+        self.ds.r2_value_changed += lambda val: print(f"R2 value: {val}")
+
         self.ds.l3_changed += lambda val: print(f"L3: {val}")
         self.ds.r3_changed += lambda val: print(f"R3: {val}")
         self.ds.dpad_up += lambda _: print("D-Pad: Up")
