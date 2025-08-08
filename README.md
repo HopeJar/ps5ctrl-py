@@ -6,6 +6,8 @@ This project provides simple utilities for interacting with a PS5 DualSense cont
 
 - Connect to a controller over USB using the [`pydualsense`](https://pypi.org/project/pydualsense/) library.
 - Print live controller input to the terminal for debugging purposes.
+- Cycle trigger modes/forces using controller buttons and query current button
+  or joystick state through simple helper methods.
 
 ## Getting Started
 
