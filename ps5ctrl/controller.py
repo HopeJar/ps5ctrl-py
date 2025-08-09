@@ -82,7 +82,11 @@ class DualSenseController:
         self._r2_mode_index = (self._r2_mode_index + 1) % len(self._trigger_modes)
         mode = self._trigger_modes[self._r2_mode_index]
         self.ds.triggerR.setMode(mode)
-        self.ds.sendReport()
+        self.ds.circle_pressed -= self._on_circle_pressed
+        try:
+            self.ds.sendReport()
+        finally:
+            self.ds.circle_pressed += self._on_circle_pressed
         print(f"R2 trigger mode set to: {mode.name}")
 
     def set_l2_force(self, force: int) -> None:
@@ -108,8 +112,32 @@ class DualSenseController:
         self._l2_mode_index = (self._l2_mode_index + 1) % len(self._trigger_modes)
         mode = self._trigger_modes[self._l2_mode_index]
         self.ds.triggerL.setMode(mode)
-        self.ds.sendReport()
+        self.ds.square_pressed -= self._on_square_pressed
+        try:
+            self.ds.sendReport()
+        finally:
+            self.ds.square_pressed += self._on_square_pressed
         print(f"L2 trigger mode set to: {mode.name}")
+
+    def _on_cross_pressed(self, val: bool) -> None:
+        """Handle cross button presses to cycle R2 force."""
+        if val:
+            self.cycle_r2_force()
+
+    def _on_circle_pressed(self, val: bool) -> None:
+        """Handle circle button presses to cycle R2 mode."""
+        if val:
+            self.cycle_r2_mode()
+
+    def _on_square_pressed(self, val: bool) -> None:
+        """Handle square button presses to cycle L2 mode."""
+        if val:
+            self.cycle_l2_mode()
+
+    def _on_triangle_pressed(self, val: bool) -> None:
+        """Handle triangle button presses to cycle L2 force."""
+        if val:
+            self.cycle_l2_force()
 
     # ------------------------------------------------------------------
     # State query helpers
@@ -172,10 +200,10 @@ class DualSenseController:
         self.ds.left_joystick_changed += lambda x, y: print(f"Left Stick: x={x}, y={y}")
         self.ds.right_joystick_changed += lambda x, y: print(f"Right Stick: x={x}, y={y}")
 
-        self.ds.cross_pressed += lambda val: self.cycle_r2_force() if val else None
-        self.ds.circle_pressed += lambda val: self.cycle_r2_mode() if val else None
-        self.ds.square_pressed += lambda val: self.cycle_l2_mode() if val else None
-        self.ds.triangle_pressed += lambda val: self.cycle_l2_force() if val else None
+        self.ds.cross_pressed += self._on_cross_pressed
+        self.ds.circle_pressed += self._on_circle_pressed
+        self.ds.square_pressed += self._on_square_pressed
+        self.ds.triangle_pressed += self._on_triangle_pressed
 
 
         try:
