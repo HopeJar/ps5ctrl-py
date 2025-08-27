@@ -60,13 +60,17 @@ class DualSenseController:
 
 
     def set_r2_force(self, force: int) -> None:
-        """Set R2 resistance using slot 6 and send report."""
+        """Set the resistance of the R2 trigger.
+
+        Args:
+            force: Resistance value (0-255) applied to slot 6.
+        """
         self.ds.triggerR.setMode(TriggerModes.Rigid)
         self.ds.triggerR.setForce(6, force)
         self.ds.sendReport()
 
     def cycle_r2_force(self) -> None:
-        """Cycle through R2 trigger force levels 0–6."""
+        """Advance to the next R2 trigger force preset."""
         if self._handling_r2_force:
             return
         self._handling_r2_force = True
@@ -78,21 +82,29 @@ class DualSenseController:
             self._handling_r2_force = False
 
     def cycle_r2_mode(self) -> None:
-        """Cycle through R2 trigger modes."""
+        """Advance to the next R2 trigger mode."""
         self._r2_mode_index = (self._r2_mode_index + 1) % len(self._trigger_modes)
         mode = self._trigger_modes[self._r2_mode_index]
         self.ds.triggerR.setMode(mode)
-        self.ds.sendReport()
+        self.ds.circle_pressed -= self._on_circle_pressed
+        try:
+            self.ds.sendReport()
+        finally:
+            self.ds.circle_pressed += self._on_circle_pressed
         print(f"R2 trigger mode set to: {mode.name}")
 
     def set_l2_force(self, force: int) -> None:
-        """Set L2 resistance using slot 6 and send report."""
+        """Set the resistance of the L2 trigger.
+
+        Args:
+            force: Resistance value (0-255) applied to slot 6.
+        """
         self.ds.triggerL.setMode(TriggerModes.Rigid)
         self.ds.triggerL.setForce(6, force)
         self.ds.sendReport()
 
     def cycle_l2_force(self) -> None:
-        """Cycle through L2 trigger force levels 0–6."""
+        """Advance to the next L2 trigger force preset."""
         if self._handling_l2_force:
             return
         self._handling_l2_force = True
@@ -104,31 +116,100 @@ class DualSenseController:
             self._handling_l2_force = False
 
     def cycle_l2_mode(self) -> None:
-        """Cycle through L2 trigger modes."""
+        """Advance to the next L2 trigger mode."""
         self._l2_mode_index = (self._l2_mode_index + 1) % len(self._trigger_modes)
         mode = self._trigger_modes[self._l2_mode_index]
         self.ds.triggerL.setMode(mode)
-        self.ds.sendReport()
+        self.ds.square_pressed -= self._on_square_pressed
+        try:
+            self.ds.sendReport()
+        finally:
+            self.ds.square_pressed += self._on_square_pressed
         print(f"L2 trigger mode set to: {mode.name}")
+
+    def _on_cross_pressed(self, val: bool) -> None:
+        """Respond to cross button events.
+
+        When pressed, the R2 trigger force is cycled.
+
+        Args:
+            val: ``True`` if the button is pressed.
+        """
+        if val:
+            self.cycle_r2_force()
+
+    def _on_circle_pressed(self, val: bool) -> None:
+        """Respond to circle button events.
+
+        When pressed, the R2 trigger mode is cycled.
+
+        Args:
+            val: ``True`` if the button is pressed.
+        """
+        if val:
+            self.cycle_r2_mode()
+
+    def _on_square_pressed(self, val: bool) -> None:
+        """Respond to square button events.
+
+        When pressed, the L2 trigger mode is cycled.
+
+        Args:
+            val: ``True`` if the button is pressed.
+        """
+        if val:
+            self.cycle_l2_mode()
+
+    def _on_triangle_pressed(self, val: bool) -> None:
+        """Respond to triangle button events.
+
+        When pressed, the L2 trigger force is cycled.
+
+        Args:
+            val: ``True`` if the button is pressed.
+        """
+        if val:
+            self.cycle_l2_force()
 
     # ------------------------------------------------------------------
     # State query helpers
     def is_button_pressed(self, button: str) -> bool:
-        """Return ``True`` if the given button is pressed."""
+        """Check whether a button is currently pressed.
+
+        Args:
+            button: Name of the button attribute in ``pydualsense.state``.
+
+        Returns:
+            ``True`` if the button is pressed.
+        """
         try:
             return bool(getattr(self.ds.state, button))
         except AttributeError:
             raise ValueError(f"Unknown button: {button}")
 
     def get_trigger_value(self, trigger: str) -> int:
-        """Return the value of a trigger (e.g. ``'l2'`` or ``'r2'``)."""
+        """Return the current value of a trigger.
+
+        Args:
+            trigger: Name of the trigger attribute (e.g., ``"l2"`` or ``"r2"``).
+
+        Returns:
+            Integer position of the trigger from 0 to 255.
+        """
         try:
             return int(getattr(self.ds.state, trigger))
         except AttributeError:
             raise ValueError(f"Unknown trigger: {trigger}")
 
     def get_joystick_state(self, stick: str) -> tuple[int, int]:
-        """Return the ``(x, y)`` position for the given joystick."""
+        """Return the ``(x, y)`` position for a joystick.
+
+        Args:
+            stick: Which joystick to query: ``"left"`` or ``"right"``.
+
+        Returns:
+            Tuple ``(x, y)`` representing the joystick position.
+        """
         stick = stick.lower()
         if stick not in {"left", "right"}:
             raise ValueError("stick must be 'left' or 'right'")
@@ -143,13 +224,16 @@ class DualSenseController:
         return int(x), int(y)
 
     def list_trigger_modes(self) -> None:
-        "Print out the available trigger modes"
+        """Print the available trigger modes to stdout."""
         print("Available trigger modes:")
         for mode in self._trigger_modes:
             print(f"- {mode.name}")
 
     def read_loop(self) -> None:
-        """Listen for controller events using pydualsense event handlers."""
+        """Listen for controller events and print them.
+
+        This method blocks until interrupted by ``CTRL+C``.
+        """
 
         print("Listening for controller input. Press CTRL+C to stop.")
 
@@ -172,10 +256,10 @@ class DualSenseController:
         self.ds.left_joystick_changed += lambda x, y: print(f"Left Stick: x={x}, y={y}")
         self.ds.right_joystick_changed += lambda x, y: print(f"Right Stick: x={x}, y={y}")
 
-        self.ds.cross_pressed += lambda val: self.cycle_r2_force() if val else None
-        self.ds.circle_pressed += lambda val: self.cycle_r2_mode() if val else None
-        self.ds.square_pressed += lambda val: self.cycle_l2_mode() if val else None
-        self.ds.triangle_pressed += lambda val: self.cycle_l2_force() if val else None
+        self.ds.cross_pressed += self._on_cross_pressed
+        self.ds.circle_pressed += self._on_circle_pressed
+        self.ds.square_pressed += self._on_square_pressed
+        self.ds.triangle_pressed += self._on_triangle_pressed
 
 
         try:
