@@ -35,6 +35,8 @@ class DualSenseController:
         # Reentrancy guards for trigger force cycling
         self._handling_r2_force = False
         self._handling_l2_force = False
+        self._last_left_stick = (None, None)
+        self._last_right_stick = (None, None)
 
     def open(self) -> None:
         """Open the connection to the controller over USB."""
@@ -121,21 +123,25 @@ class DualSenseController:
 
     def _on_cross_pressed(self, val: bool) -> None:
         """Handle cross button presses to cycle R2 force."""
+        print(f"Cross button: {val}")
         if val:
             self.cycle_r2_force()
 
     def _on_circle_pressed(self, val: bool) -> None:
         """Handle circle button presses to cycle R2 mode."""
-        if val:
-            self.cycle_r2_mode()
+        print(f"Circle button: {val}")
+        # if val:
+        #     self.cycle_r2_mode()
 
     def _on_square_pressed(self, val: bool) -> None:
         """Handle square button presses to cycle L2 mode."""
-        if val:
-            self.cycle_l2_mode()
+        print(f"Square button: {val}")
+        # if val:
+        #     self.cycle_l2_mode()
 
     def _on_triangle_pressed(self, val: bool) -> None:
         """Handle triangle button presses to cycle L2 force."""
+        print(f"Triangle button: {val}")
         if val:
             self.cycle_l2_force()
 
@@ -184,19 +190,17 @@ class DualSenseController:
         # Register event callbacks
         self.ds.l1_changed += lambda val: print(f"L1: {val}")
         self.ds.r1_changed += lambda val: print(f"R1: {val}")
-        # self.ds.l2_value_changed += lambda val: print(f"L2: {val}")
-        # self.ds.r2_value_changed += lambda val: print(f"R2: {val}")
-        # self.ds.r2_value_changed += lambda val: self.ds.setRightMotor(255 - val)
-        # self.ds.l2_value_changed += lambda val: self.ds.setLeftMotor(255 - val)
+        # self.ds.r2_value_changed += lambda val: self.ds.setRightMotor(255 - val) # right vibrator motor
+        # self.ds.l2_value_changed += lambda val: self.ds.setLeftMotor(255 - val) # left virbrator motor
         self.ds.l2_value_changed += lambda val: print(f"L2 value: {val}")
         self.ds.r2_value_changed += lambda val: print(f"R2 value: {val}")
 
         self.ds.l3_changed += lambda val: print(f"L3: {val}")
         self.ds.r3_changed += lambda val: print(f"R3: {val}")
-        self.ds.dpad_up += lambda _: print("D-Pad: Up")
-        self.ds.dpad_down += lambda _: print("D-Pad: Down")
-        self.ds.dpad_left += lambda _: print("D-Pad: Left")
-        self.ds.dpad_right += lambda _: print("D-Pad: Right")
+        self.ds.dpad_up += lambda val: print(f"D-Pad Up: {val}")
+        self.ds.dpad_down += lambda val: print(f"D-Pad Down: {val}")
+        self.ds.dpad_left += lambda val: print(f"D-Pad Left: {val}")
+        self.ds.dpad_right += lambda val: print(f"D-Pad Right: {val}")
         self.ds.left_joystick_changed += lambda x, y: print(f"Left Stick: x={x}, y={y}")
         self.ds.right_joystick_changed += lambda x, y: print(f"Right Stick: x={x}, y={y}")
 
