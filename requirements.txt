@@ -1,5 +1,3 @@
 pydualsense
-libhidapi-hidraw0 
-libhidapi-dev
 pdoc
 tox
