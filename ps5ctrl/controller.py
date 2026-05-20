@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from enum import Enum
 from typing import Any
 
 try:
@@ -16,37 +17,87 @@ except ImportError:  # pragma: no cover - optional dependency
 ButtonCallback = Callable[[bool], None]
 TriggerCallback = Callable[[int], None]
 StickCallback = Callable[[int, int], None]
+ControlName = str | Enum
+
+
+class Button(str, Enum):
+    """Supported button names."""
+
+    CROSS = "cross"
+    CIRCLE = "circle"
+    SQUARE = "square"
+    TRIANGLE = "triangle"
+    L1 = "l1"
+    R1 = "r1"
+    L3 = "l3"
+    R3 = "r3"
+    DPAD_UP = "dpad_up"
+    DPAD_DOWN = "dpad_down"
+    DPAD_LEFT = "dpad_left"
+    DPAD_RIGHT = "dpad_right"
+
+
+class Trigger(str, Enum):
+    """Supported analog trigger names."""
+
+    L2 = "l2"
+    R2 = "r2"
+
+
+class Stick(str, Enum):
+    """Supported joystick names."""
+
+    LEFT = "left"
+    RIGHT = "right"
 
 
 class DualSenseController:
     """Simple wrapper around :class:`pydualsense.pydualsense`.
 
-    This class exposes a small event-registration API plus basic state helpers
-    so projects can build controller behavior without depending directly on
-    pydualsense event names.
+    This class exposes a small event-registration API plus explicit state
+    helpers so projects can build controller behavior without depending
+    directly on pydualsense event or state names.
     """
 
     _BUTTON_EVENTS = {
-        "cross": "cross_pressed",
-        "circle": "circle_pressed",
-        "square": "square_pressed",
-        "triangle": "triangle_pressed",
-        "l1": "l1_changed",
-        "r1": "r1_changed",
-        "l3": "l3_changed",
-        "r3": "r3_changed",
-        "dpad_up": "dpad_up",
-        "dpad_down": "dpad_down",
-        "dpad_left": "dpad_left",
-        "dpad_right": "dpad_right",
+        Button.CROSS.value: "cross_pressed",
+        Button.CIRCLE.value: "circle_pressed",
+        Button.SQUARE.value: "square_pressed",
+        Button.TRIANGLE.value: "triangle_pressed",
+        Button.L1.value: "l1_changed",
+        Button.R1.value: "r1_changed",
+        Button.L3.value: "l3_changed",
+        Button.R3.value: "r3_changed",
+        Button.DPAD_UP.value: "dpad_up",
+        Button.DPAD_DOWN.value: "dpad_down",
+        Button.DPAD_LEFT.value: "dpad_left",
+        Button.DPAD_RIGHT.value: "dpad_right",
+    }
+    _BUTTON_STATES = {
+        Button.CROSS.value: "cross",
+        Button.CIRCLE.value: "circle",
+        Button.SQUARE.value: "square",
+        Button.TRIANGLE.value: "triangle",
+        Button.L1.value: "l1",
+        Button.R1.value: "r1",
+        Button.L3.value: "l3",
+        Button.R3.value: "r3",
+        Button.DPAD_UP.value: "dpad_up",
+        Button.DPAD_DOWN.value: "dpad_down",
+        Button.DPAD_LEFT.value: "dpad_left",
+        Button.DPAD_RIGHT.value: "dpad_right",
     }
     _TRIGGER_EVENTS = {
-        "l2": "l2_value_changed",
-        "r2": "r2_value_changed",
+        Trigger.L2.value: "l2_value_changed",
+        Trigger.R2.value: "r2_value_changed",
+    }
+    _TRIGGER_STATES = {
+        Trigger.L2.value: "l2",
+        Trigger.R2.value: "r2",
     }
     _STICK_EVENTS = {
-        "left": "left_joystick_changed",
-        "right": "right_joystick_changed",
+        Stick.LEFT.value: "left_joystick_changed",
+        Stick.RIGHT.value: "right_joystick_changed",
     }
 
     def __init__(self) -> None:
@@ -94,33 +145,36 @@ class DualSenseController:
         self.ds.sendReport()
         self.ds.close()
 
-    def on_button(self, button: str, callback: ButtonCallback) -> None:
+    def on_button(self, button: ControlName, callback: ButtonCallback) -> None:
         """Register a callback for a button event.
 
+        ``button`` may be a :class:`Button` value or a supported button name.
         The callback receives a single boolean indicating whether the button is
         currently pressed.
         """
         event = self._get_event(self._BUTTON_EVENTS, button, "button")
         event += callback
 
-    def on_trigger(self, trigger: str, callback: TriggerCallback) -> None:
+    def on_trigger(self, trigger: ControlName, callback: TriggerCallback) -> None:
         """Register a callback for a trigger value event.
 
+        ``trigger`` may be a :class:`Trigger` value or ``"l2"``/``"r2"``.
         The callback receives the trigger value reported by pydualsense.
         """
         event = self._get_event(self._TRIGGER_EVENTS, trigger, "trigger")
         event += callback
 
-    def on_stick(self, stick: str, callback: StickCallback) -> None:
+    def on_stick(self, stick: ControlName, callback: StickCallback) -> None:
         """Register a callback for a joystick movement event.
 
+        ``stick`` may be a :class:`Stick` value or ``"left"``/``"right"``.
         The callback receives the ``x`` and ``y`` axis values.
         """
         event = self._get_event(self._STICK_EVENTS, stick, "stick")
         event += callback
 
-    def _get_event(self, mapping: dict[str, str], name: str, kind: str) -> Any:
-        normalized = name.lower().replace("-", "_")
+    def _get_event(self, mapping: dict[str, str], name: ControlName, kind: str) -> Any:
+        normalized = self._normalize_name(name)
         try:
             event_name = mapping[normalized]
         except KeyError as exc:
@@ -130,6 +184,7 @@ class DualSenseController:
 
     def set_r2_force(self, force: int) -> None:
         """Set R2 resistance using slot 6 and send report."""
+        self._validate_force(force)
         self.ds.triggerR.setMode(TriggerModes.Rigid)
         self.ds.triggerR.setForce(6, force)
         self.ds.sendReport()
@@ -160,6 +215,7 @@ class DualSenseController:
 
     def set_l2_force(self, force: int) -> None:
         """Set L2 resistance using slot 6 and send report."""
+        self._validate_force(force)
         self.ds.triggerL.setMode(TriggerModes.Rigid)
         self.ds.triggerL.setForce(6, force)
         self.ds.sendReport()
@@ -188,6 +244,12 @@ class DualSenseController:
             self.ds.square_pressed += self._on_square_pressed
         return mode
 
+    def _validate_force(self, force: int) -> None:
+        if not isinstance(force, int):
+            raise TypeError("force must be an integer from 0 through 6")
+        if not 0 <= force <= 6:
+            raise ValueError("force must be from 0 through 6")
+
     def _on_cross_pressed(self, val: bool) -> None:
         """Handle cross button presses to cycle R2 force."""
         if val:
@@ -208,26 +270,44 @@ class DualSenseController:
         if val:
             self.cycle_l2_force()
 
-    def is_button_pressed(self, button: str) -> bool:
-        """Return ``True`` if the given button is pressed."""
-        try:
-            return bool(getattr(self.ds.state, button))
-        except AttributeError:
-            raise ValueError(f"Unknown button: {button}")
+    def is_button_pressed(self, button: ControlName) -> bool:
+        """Return ``True`` if the given button is pressed.
 
-    def get_trigger_value(self, trigger: str) -> int:
-        """Return the value of a trigger, such as ``'l2'`` or ``'r2'``."""
+        ``button`` may be a :class:`Button` value or a supported button name.
+        """
+        normalized = self._normalize_name(button)
         try:
-            return int(getattr(self.ds.state, trigger))
-        except AttributeError:
-            raise ValueError(f"Unknown trigger: {trigger}")
+            attr = self._BUTTON_STATES[normalized]
+        except KeyError as exc:
+            valid = ", ".join(sorted(self._BUTTON_STATES))
+            raise ValueError(f"Unknown button: {button}. Valid values: {valid}") from exc
+        try:
+            return bool(getattr(self.ds.state, attr))
+        except AttributeError as exc:
+            raise ValueError(f"Button state attribute missing: {attr}") from exc
 
-    def get_joystick_state(self, stick: str) -> tuple[int, int]:
+    def get_trigger_value(self, trigger: ControlName) -> int:
+        """Return the value of a trigger.
+
+        ``trigger`` may be a :class:`Trigger` value or ``"l2"``/``"r2"``.
+        """
+        normalized = self._normalize_name(trigger)
+        try:
+            attr = self._TRIGGER_STATES[normalized]
+        except KeyError as exc:
+            valid = ", ".join(sorted(self._TRIGGER_STATES))
+            raise ValueError(f"Unknown trigger: {trigger}. Valid values: {valid}") from exc
+        try:
+            return int(getattr(self.ds.state, attr))
+        except AttributeError as exc:
+            raise ValueError(f"Trigger state attribute missing: {attr}") from exc
+
+    def get_joystick_state(self, stick: ControlName) -> tuple[int, int]:
         """Return the ``(x, y)`` position for the given joystick."""
-        stick = stick.lower()
-        if stick not in {"left", "right"}:
+        normalized = self._normalize_name(stick)
+        if normalized not in {Stick.LEFT.value, Stick.RIGHT.value}:
             raise ValueError("stick must be 'left' or 'right'")
-        prefix = "l" if stick == "left" else "r"
+        prefix = "l" if normalized == Stick.LEFT.value else "r"
         x_attr = f"{prefix}x"
         y_attr = f"{prefix}y"
         try:
@@ -236,6 +316,75 @@ class DualSenseController:
         except AttributeError as exc:
             raise ValueError("Joystick state attributes missing") from exc
         return int(x), int(y)
+
+    def cross_pressed(self) -> bool:
+        """Return whether the cross button is pressed."""
+        return self.is_button_pressed(Button.CROSS)
+
+    def circle_pressed(self) -> bool:
+        """Return whether the circle button is pressed."""
+        return self.is_button_pressed(Button.CIRCLE)
+
+    def square_pressed(self) -> bool:
+        """Return whether the square button is pressed."""
+        return self.is_button_pressed(Button.SQUARE)
+
+    def triangle_pressed(self) -> bool:
+        """Return whether the triangle button is pressed."""
+        return self.is_button_pressed(Button.TRIANGLE)
+
+    def l1_pressed(self) -> bool:
+        """Return whether L1 is pressed."""
+        return self.is_button_pressed(Button.L1)
+
+    def r1_pressed(self) -> bool:
+        """Return whether R1 is pressed."""
+        return self.is_button_pressed(Button.R1)
+
+    def l3_pressed(self) -> bool:
+        """Return whether L3 is pressed."""
+        return self.is_button_pressed(Button.L3)
+
+    def r3_pressed(self) -> bool:
+        """Return whether R3 is pressed."""
+        return self.is_button_pressed(Button.R3)
+
+    def dpad_up_pressed(self) -> bool:
+        """Return whether D-pad up is pressed."""
+        return self.is_button_pressed(Button.DPAD_UP)
+
+    def dpad_down_pressed(self) -> bool:
+        """Return whether D-pad down is pressed."""
+        return self.is_button_pressed(Button.DPAD_DOWN)
+
+    def dpad_left_pressed(self) -> bool:
+        """Return whether D-pad left is pressed."""
+        return self.is_button_pressed(Button.DPAD_LEFT)
+
+    def dpad_right_pressed(self) -> bool:
+        """Return whether D-pad right is pressed."""
+        return self.is_button_pressed(Button.DPAD_RIGHT)
+
+    def l2_value(self) -> int:
+        """Return the current L2 trigger value."""
+        return self.get_trigger_value(Trigger.L2)
+
+    def r2_value(self) -> int:
+        """Return the current R2 trigger value."""
+        return self.get_trigger_value(Trigger.R2)
+
+    def left_stick(self) -> tuple[int, int]:
+        """Return the current left stick ``(x, y)`` position."""
+        return self.get_joystick_state(Stick.LEFT)
+
+    def right_stick(self) -> tuple[int, int]:
+        """Return the current right stick ``(x, y)`` position."""
+        return self.get_joystick_state(Stick.RIGHT)
+
+    def _normalize_name(self, name: ControlName) -> str:
+        if isinstance(name, Enum):
+            name = name.value
+        return str(name).lower().replace("-", "_")
 
     def list_trigger_modes(self) -> list[str]:
         """Return the available trigger mode names."""

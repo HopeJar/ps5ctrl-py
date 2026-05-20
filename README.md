@@ -32,7 +32,7 @@ From the project root:
 pip install -e .
 ```
 
-For local development and documentation tools:
+For local development and documentation tools, including the editable package and `ps5ctrl-debug` command:
 
 ```bash
 pip install -r requirements.txt
@@ -43,7 +43,7 @@ pip install -r requirements.txt
 Use callbacks to connect controller input to your own application behavior:
 
 ```python
-from ps5ctrl import DualSenseController
+from ps5ctrl import Button, DualSenseController, Stick, Trigger
 
 
 def jump(pressed: bool) -> None:
@@ -56,9 +56,9 @@ def throttle(value: int) -> None:
 
 
 with DualSenseController() as controller:
-    controller.on_button("cross", jump)
-    controller.on_trigger("r2", throttle)
-    controller.on_stick("left", lambda x, y: print(f"move: {x}, {y}"))
+    controller.on_button(Button.CROSS, jump)
+    controller.on_trigger(Trigger.R2, throttle)
+    controller.on_stick(Stick.LEFT, lambda x, y: print(f"move: {x}, {y}"))
     controller.listen()
 ```
 
@@ -84,12 +84,15 @@ with DualSenseController() as controller:
 ### Event Callbacks
 
 ```python
+controller.on_button(Button.CROSS, callback)
+controller.on_trigger(Trigger.R2, callback)
+controller.on_stick(Stick.LEFT, callback)
+
+# String names are also supported:
 controller.on_button("cross", callback)
-controller.on_trigger("r2", callback)
-controller.on_stick("left", callback)
 ```
 
-Button callbacks receive `bool`, trigger callbacks receive `int`, and stick callbacks receive `x, y` integer values.
+Button callbacks receive `bool`, trigger callbacks receive `int`, and stick callbacks receive `x, y` integer values. Prefer the `Button`, `Trigger`, and `Stick` enums when writing reusable code; plain strings still work for quick scripts.
 
 Supported button names:
 
@@ -112,10 +115,23 @@ left, right
 
 ### State Queries
 
+Use explicit helpers for common controls:
+
 ```python
-controller.is_button_pressed("cross")
-controller.get_trigger_value("r2")
-controller.get_joystick_state("left")
+controller.cross_pressed()
+controller.circle_pressed()
+controller.l2_value()
+controller.r2_value()
+controller.left_stick()
+controller.right_stick()
+```
+
+The generic helpers also accept enums or string names:
+
+```python
+controller.is_button_pressed(Button.CROSS)
+controller.get_trigger_value(Trigger.R2)
+controller.get_joystick_state(Stick.LEFT)
 ```
 
 ### Adaptive Triggers
@@ -128,17 +144,23 @@ new_level = controller.cycle_r2_force()
 new_mode = controller.cycle_l2_mode()
 ```
 
-`list_trigger_modes()` returns the available trigger mode names.
+Trigger force values must be integers from `0` through `6`. `list_trigger_modes()` returns the available trigger mode names.
 
 ## Debugging Controller Input
 
-To print live controller input in the terminal, run:
+To print live controller input in the terminal after installation, run:
+
+```bash
+ps5ctrl-debug
+```
+
+When working directly from the repository, the compatibility script still works:
 
 ```bash
 python scripts/debug_inputs.py
 ```
 
-This script is intentionally where terminal printing lives. The library itself exposes callbacks and state helpers so your project can decide how to handle input.
+The debug command is intentionally where terminal printing lives. The library itself exposes callbacks and state helpers so your project can decide how to handle input.
 
 ## Troubleshooting
 
