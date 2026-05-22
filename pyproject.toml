@@ -25,7 +25,10 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+    "coverage[toml]",
     "pdoc",
+    "pytest",
+    "pytest-cov",
     "tox",
 ]
 
@@ -39,3 +42,16 @@ ps5ctrl-debug = "ps5ctrl.debug_inputs:main"
 
 [tool.setuptools.packages.find]
 include = ["ps5ctrl*"]
+
+[tool.coverage.run]
+branch = true
+source = ["ps5ctrl"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+]

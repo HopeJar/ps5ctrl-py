@@ -12,11 +12,13 @@ try:
     from pydualsense import pydualsense
 except ImportError:  # pragma: no cover - optional dependency
     pydualsense = None
+    TriggerModes = None
 
 
 ButtonCallback = Callable[[bool], None]
 TriggerCallback = Callable[[int], None]
 StickCallback = Callable[[int, int], None]
+UnsubscribeCallback = Callable[[], None]
 ControlName = str | Enum
 
 
@@ -117,6 +119,7 @@ class DualSenseController:
         self._handling_l2_force = False
         self._last_left_stick = (None, None)
         self._last_right_stick = (None, None)
+        self._listening = False
 
     def __enter__(self) -> "DualSenseController":
         """Open the controller connection when used as a context manager."""
@@ -133,6 +136,7 @@ class DualSenseController:
 
     def close(self) -> None:
         """Close the connection to the controller."""
+        self.stop()
         self.ds.setRightMotor(0)
         self.ds.setLeftMotor(0)
 
@@ -145,33 +149,61 @@ class DualSenseController:
         self.ds.sendReport()
         self.ds.close()
 
-    def on_button(self, button: ControlName, callback: ButtonCallback) -> None:
+    def on_button(
+        self, button: ControlName, callback: ButtonCallback
+    ) -> UnsubscribeCallback:
         """Register a callback for a button event.
 
         ``button`` may be a :class:`Button` value or a supported button name.
         The callback receives a single boolean indicating whether the button is
-        currently pressed.
+        currently pressed. The returned function unregisters the callback.
         """
         event = self._get_event(self._BUTTON_EVENTS, button, "button")
         event += callback
+        return self._make_unsubscribe(event, callback)
 
-    def on_trigger(self, trigger: ControlName, callback: TriggerCallback) -> None:
+    def on_trigger(
+        self, trigger: ControlName, callback: TriggerCallback
+    ) -> UnsubscribeCallback:
         """Register a callback for a trigger value event.
 
         ``trigger`` may be a :class:`Trigger` value or ``"l2"``/``"r2"``.
-        The callback receives the trigger value reported by pydualsense.
+        The callback receives the trigger value reported by pydualsense. The
+        returned function unregisters the callback.
         """
         event = self._get_event(self._TRIGGER_EVENTS, trigger, "trigger")
         event += callback
+        return self._make_unsubscribe(event, callback)
 
-    def on_stick(self, stick: ControlName, callback: StickCallback) -> None:
+    def on_stick(
+        self, stick: ControlName, callback: StickCallback
+    ) -> UnsubscribeCallback:
         """Register a callback for a joystick movement event.
 
         ``stick`` may be a :class:`Stick` value or ``"left"``/``"right"``.
-        The callback receives the ``x`` and ``y`` axis values.
+        The callback receives the ``x`` and ``y`` axis values. The returned
+        function unregisters the callback.
         """
         event = self._get_event(self._STICK_EVENTS, stick, "stick")
         event += callback
+        return self._make_unsubscribe(event, callback)
+
+    def _make_unsubscribe(
+        self, event: Any, callback: ButtonCallback | TriggerCallback | StickCallback
+    ) -> UnsubscribeCallback:
+        unsubscribed = False
+
+        def unsubscribe() -> None:
+            nonlocal event, unsubscribed
+            if unsubscribed:
+                return
+            try:
+                event -= callback
+            except ValueError:
+                pass
+            unsubscribed = True
+
+        return unsubscribe
 
     def _get_event(self, mapping: dict[str, str], name: ControlName, kind: str) -> Any:
         normalized = self._normalize_name(name)
@@ -181,7 +213,6 @@ class DualSenseController:
             valid = ", ".join(sorted(mapping))
             raise ValueError(f"Unknown {kind}: {name}. Valid values: {valid}") from exc
         return getattr(self.ds, event_name)
-
     def set_r2_force(self, force: int) -> None:
         """Set R2 resistance using slot 6 and send report."""
         self._validate_force(force)
@@ -392,8 +423,16 @@ class DualSenseController:
 
     def listen(self, poll_interval: float = 0.1) -> None:
         """Keep the process alive while pydualsense dispatches registered events."""
-        while True:
-            time.sleep(poll_interval)
+        self._listening = True
+        try:
+            while self._listening:
+                time.sleep(poll_interval)
+        finally:
+            self._listening = False
+
+    def stop(self) -> None:
+        """Request that the active listener loop stop."""
+        self._listening = False
 
     def read_loop(self, poll_interval: float = 0.1) -> None:
         """Backward-compatible alias for :meth:`listen`."""

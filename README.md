@@ -81,18 +81,27 @@ with DualSenseController() as controller:
     controller.listen()
 ```
 
+Use `stop()` from another thread or callback when your app needs to exit the listener loop:
+
+```python
+controller.stop()
+```
+
 ### Event Callbacks
 
 ```python
-controller.on_button(Button.CROSS, callback)
-controller.on_trigger(Trigger.R2, callback)
-controller.on_stick(Stick.LEFT, callback)
+unsubscribe_button = controller.on_button(Button.CROSS, callback)
+unsubscribe_trigger = controller.on_trigger(Trigger.R2, callback)
+unsubscribe_stick = controller.on_stick(Stick.LEFT, callback)
 
 # String names are also supported:
 controller.on_button("cross", callback)
+
+# Later, remove a callback when you no longer need it:
+unsubscribe_button()
 ```
 
-Button callbacks receive `bool`, trigger callbacks receive `int`, and stick callbacks receive `x, y` integer values. Prefer the `Button`, `Trigger`, and `Stick` enums when writing reusable code; plain strings still work for quick scripts.
+Button callbacks receive `bool`, trigger callbacks receive `int`, and stick callbacks receive `x, y` integer values. Each registration returns an idempotent unsubscribe function. Prefer the `Button`, `Trigger`, and `Stick` enums when writing reusable code; plain strings still work for quick scripts.
 
 Supported button names:
 
@@ -196,6 +205,16 @@ If `pydualsense` still fails to import, reinstall it directly:
 ```bash
 pip install pydualsense
 ```
+
+## Testing
+
+The unit tests use mocked controller objects, so they do not require PS5 hardware.
+
+```bash
+python -m pytest --cov=ps5ctrl --cov-report=term-missing --cov-fail-under=90
+```
+
+The configured coverage gate requires at least 90% total coverage.
 
 ## Documentation
 
